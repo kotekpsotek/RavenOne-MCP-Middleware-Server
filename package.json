@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@ravenlens/backend": "^0.0.1",
     "@ravenlens/shared": "^0.0.1",
     "@types/express": "^4.17.25",

@@ -8,6 +8,10 @@
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
     "module": "nodenext",
+    "baseUrl": ".",
+    "paths": {
+      "@ravenlens/backend/mcp-interface": ["../../packages/backend/src/mcp/index.ts"]
+    },
     "target": "esnext",
     "types": ["./types/index.d.ts"],
     // For nodejs:

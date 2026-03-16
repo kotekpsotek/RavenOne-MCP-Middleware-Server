@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import { MCPConfigInterface } from "./interface/config.js";
+import MCPCallingRouter from "./mcp/server.js";
 
 const app = express();
 
@@ -83,7 +84,7 @@ app.post("/is-connectable", async (req, res) => {
 })
 
 app.route("/mcp-config")
-.get(async (req, res) => { // Download mcp config
+.put(async (req, res) => { // Download mcp config
     // 1. Read
     const mcpConfigStringJSON = new MCPConfigInterface().read();
 
@@ -111,4 +112,27 @@ app.route("/mcp-config")
     res.sendStatus(200);
 })
 
-// TODO: Tool usage routes from 1st point of TODO.md
+// MCP Calling router
+app.use(MCPCallingRouter);
+
+// Global Error Handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    // Log the error for internal tracking
+    console.error(`[Error] ${req.method} ${req.url}:`, err.stack || err.message);
+
+    // Determine status code (default to 500)
+    const statusCode = err.status || err.statusCode || 500;
+
+    // Send formatted JSON response
+    res.status(statusCode).json({
+        error: {
+            message: err.message || "Internal Server Error",
+            status: statusCode,
+            timestamp: new Date().toISOString()
+        }
+    });
+});
+
+// Listen
+const port = process.env["PORT"] ?? 8000
+app.listen(port, () => console.log(`Server listens on port: ${port}`));
