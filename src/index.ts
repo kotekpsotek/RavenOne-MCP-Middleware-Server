@@ -111,10 +111,4 @@ app.route("/mcp-config")
     res.sendStatus(200);
 })
 
-// TODO: Tool usage routes
-/**
- * 1. Retrive the MCP servers list -> this is required for 2nd option option 'specific' route
- * 2. Retrive the MCP Server tools of 'specified' or 'all' mcp servers where: 'specified' and 'all' are the options
- * 3. Call the set of mcp tools with specified parameters and return the output to the caller. Take the mcp tools in list where can be one or multiple tools from multiple different mcp servers
- */
-
+// TODO: Tool usage routes from 1st point of TODO.md
