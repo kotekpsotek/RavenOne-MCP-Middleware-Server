@@ -40,19 +40,61 @@ MCPCallingRouter.post("/get-mcp-servers-tools", async (req, res) => {
         return;
     }
 
-    const serverToolEntries = await Promise.all(
+    const serverToolsResults = await Promise.allSettled(
         uniqueServerNames.map(async (serverName) => {
             const tools = await withMCPClientForServer(serverName, readConfigResult.config, async (client) => {
                 const listToolsResult = await client.listTools();
                 return listToolsResult.tools;
             });
 
-            return [serverName, tools] as const;
+            return {
+                serverName,
+                tools,
+            };
         }),
     );
 
+    const serverToolEntries: Array<readonly [string, unknown]> = [];
+    const errorsByServer: Record<string, string> = {};
+
+    for (const [index, result] of serverToolsResults.entries()) {
+        const serverName = uniqueServerNames[index];
+        if (!serverName) {
+            continue;
+        }
+
+        if (result.status === "fulfilled") {
+            serverToolEntries.push([serverName, result.value.tools]);
+            continue;
+        }
+
+        errorsByServer[serverName] = result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason);
+    }
+
     const toolsByServer = Object.fromEntries(serverToolEntries) as MCPServerToolsMap;
-    res.status(200).json(toolsByServer);
+    const hasFailures = Object.keys(errorsByServer).length > 0;
+    const hasSuccesses = Object.keys(toolsByServer).length > 0;
+
+    if (!hasFailures) {
+        res.status(200).json(toolsByServer);
+        return;
+    }
+
+    if (!hasSuccesses) {
+        res.status(502).json({
+            message: "Failed to retrieve tools from requested MCP servers.",
+            errorsByServer,
+        });
+        return;
+    }
+
+    res.status(207).json({
+        message: "Retrieved tools from some MCP servers. Some servers failed.",
+        toolsByServer,
+        errorsByServer,
+    });
 })
 
 MCPCallingRouter.post(["/call-tools", "/call-tool"], async (req, res) => {

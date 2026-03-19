@@ -17,6 +17,18 @@ const MCP_CLIENT_IMPLEMENTATION = {
     version: "1.0.0",
 };
 
+function summarizeServerCommand(serverConfig: StdioServerParameters): string {
+    const serializedArgs = Array.isArray(serverConfig.args) && serverConfig.args.length
+        ? ` ${serverConfig.args.join(" ")}`
+        : "";
+
+    return `${serverConfig.command}${serializedArgs}`;
+}
+
+function errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
 export function readMCPConfigOrStatus():
     | { ok: true; config: MCPConfigJSON }
     | { ok: false; status: number; message: string } {
@@ -127,10 +139,22 @@ export async function withMCPClientForServer<T>(
 
     const transport = new StdioClientTransport(serverConfig);
     const client = new Client(MCP_CLIENT_IMPLEMENTATION);
+    const commandSummary = summarizeServerCommand(serverConfig);
 
     try {
         await client.connect(transport);
         return await run(client);
+    } catch (error) {
+        const message = errorMessage(error);
+        if (message.includes("Connection closed")) {
+            throw new Error(
+                `MCP server "${serverName}" closed the stdio connection. Ensure the command starts a long-running MCP server process and does not exit immediately. Command: ${commandSummary}. Original error: ${message}`,
+            );
+        }
+
+        throw new Error(
+            `MCP request failed for server "${serverName}". Command: ${commandSummary}. Error: ${message}`,
+        );
     } finally {
         await Promise.allSettled([
             client.close(),
