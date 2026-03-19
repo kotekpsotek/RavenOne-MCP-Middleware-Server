@@ -1,14 +1,21 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import {
     StdioClientTransport,
-    type StdioServerParameters,
 } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import type { MCPToolInvocation, MCPServerToolsMap, MCPToolOutput } from "@ravenlens/backend/mcp-interface";
 import { MCPConfigInterface } from "../interface/config.js";
-
-type MCPConfigJSON = {
-    mcpServers: Record<string, StdioServerParameters>;
-};
+import {
+    isRemoteServerConfig,
+    isStdioServerConfig,
+    parseMCPConfig,
+    resolveServerTransport,
+    type MCPConfigJSON,
+    type MCPRemoteServerConfig,
+    type MCPServerConfig,
+    type MCPStdioServerConfig,
+} from "./config.validation.js";
 
 export type { MCPServerToolsMap, MCPToolOutput };
 
@@ -17,7 +24,7 @@ const MCP_CLIENT_IMPLEMENTATION = {
     version: "1.0.0",
 };
 
-function summarizeServerCommand(serverConfig: StdioServerParameters): string {
+function summarizeServerCommand(serverConfig: MCPStdioServerConfig): string {
     const serializedArgs = Array.isArray(serverConfig.args) && serverConfig.args.length
         ? ` ${serverConfig.args.join(" ")}`
         : "";
@@ -27,6 +34,53 @@ function summarizeServerCommand(serverConfig: StdioServerParameters): string {
 
 function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+}
+
+function summarizeServerTarget(serverConfig: MCPServerConfig): string {
+    const transport = resolveServerTransport(serverConfig);
+
+    if (transport === "stdio" && isStdioServerConfig(serverConfig)) {
+        return summarizeServerCommand(serverConfig);
+    }
+
+    if (isRemoteServerConfig(serverConfig)) {
+        return `${transport.toUpperCase()} ${serverConfig.url}`;
+    }
+
+    return transport.toUpperCase();
+}
+
+function toHTTPTransportOptions(serverConfig: MCPRemoteServerConfig) {
+    const requestInit = serverConfig.headers
+        ? { headers: serverConfig.headers }
+        : undefined;
+
+    return requestInit ? { requestInit } : undefined;
+}
+
+function createTransportForServer(serverName: string, serverConfig: MCPServerConfig) {
+    const transport = resolveServerTransport(serverConfig);
+
+    if (transport === "stdio") {
+        if (!isStdioServerConfig(serverConfig)) {
+            throw new Error(`MCP server "${serverName}" is configured as stdio but lacks a valid "command" string.`);
+        }
+
+        return new StdioClientTransport(serverConfig);
+    }
+
+    if (!isRemoteServerConfig(serverConfig)) {
+        throw new Error(`MCP server "${serverName}" is configured as remote transport but lacks a valid "url" string.`);
+    }
+
+    const transportOptions = toHTTPTransportOptions(serverConfig);
+    const serverUrl = new URL(serverConfig.url);
+
+    if (transport === "sse") {
+        return new SSEClientTransport(serverUrl, transportOptions);
+    }
+
+    return new StreamableHTTPClientTransport(serverUrl, transportOptions);
 }
 
 export function readMCPConfigOrStatus():
@@ -42,27 +96,19 @@ export function readMCPConfigOrStatus():
         };
     }
 
-    try {
-        const parsedConfig = JSON.parse(mcpConfigRaw) as Partial<MCPConfigJSON>;
-        if (!parsedConfig.mcpServers || typeof parsedConfig.mcpServers !== "object") {
-            return {
-                ok: false,
-                status: 400,
-                message: "MCP configuration is missing the mcpServers object.",
-            };
-        }
-
-        return {
-            ok: true,
-            config: parsedConfig as MCPConfigJSON,
-        };
-    } catch {
+    const parsedConfig = parseMCPConfig(mcpConfigRaw);
+    if (!parsedConfig.ok) {
         return {
             ok: false,
             status: 400,
-            message: "MCP configuration is not a valid JSON.",
+            message: `MCP configuration is invalid. ${parsedConfig.error}`,
         };
     }
+
+    return {
+        ok: true,
+        config: parsedConfig.value,
+    };
 }
 
 export function extractServerNames(body: unknown): string[] | undefined {
@@ -137,23 +183,24 @@ export async function withMCPClientForServer<T>(
         throw new Error(`MCP server \"${serverName}\" is missing in configuration.`);
     }
 
-    const transport = new StdioClientTransport(serverConfig);
+    const transport = createTransportForServer(serverName, serverConfig);
     const client = new Client(MCP_CLIENT_IMPLEMENTATION);
-    const commandSummary = summarizeServerCommand(serverConfig);
+    const targetSummary = summarizeServerTarget(serverConfig);
+    const transportKind = resolveServerTransport(serverConfig);
 
     try {
-        await client.connect(transport);
+        await client.connect(transport as unknown as Parameters<Client["connect"]>[0]);
         return await run(client);
     } catch (error) {
         const message = errorMessage(error);
-        if (message.includes("Connection closed")) {
+        if (transportKind === "stdio" && message.includes("Connection closed")) {
             throw new Error(
-                `MCP server "${serverName}" closed the stdio connection. Ensure the command starts a long-running MCP server process and does not exit immediately. Command: ${commandSummary}. Original error: ${message}`,
+                `MCP server "${serverName}" closed the stdio connection. Ensure the command starts a long-running MCP server process and does not exit immediately. Command: ${targetSummary}. Original error: ${message}`,
             );
         }
 
         throw new Error(
-            `MCP request failed for server "${serverName}". Command: ${commandSummary}. Error: ${message}`,
+            `MCP request failed for server "${serverName}" over ${transportKind}. Target: ${targetSummary}. Error: ${message}`,
         );
     } finally {
         await Promise.allSettled([
