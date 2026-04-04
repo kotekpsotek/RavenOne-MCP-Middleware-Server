@@ -3,4 +3,6 @@ interface FailedAttempt {
     resetTime: number;
 }
 
-type CredentialPasswordObj = Pick<MCPCredentials, "secretPassword">;
+interface CredentialPasswordObj {
+    secretPassword?: string;
+}

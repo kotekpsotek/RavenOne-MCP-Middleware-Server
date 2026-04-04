@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer <TOKEN_HERE>"
+      }
+    },
+    "example-stdio-server": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./path/to/server.js"],
+      "env": {
+        "EXAMPLE_KEY": "value"
+      }
+    }
+  }
+}

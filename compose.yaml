@@ -1,0 +1,15 @@
+services:
+  mcp-client-middleware-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mcp-client-middleware-server:local
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      ConfigFilePath: /app/config/mcpConfig.json
+    volumes:
+      - ./config/mcpConfig.json:/app/config/mcpConfig.json:ro
+    restart: unless-stopped

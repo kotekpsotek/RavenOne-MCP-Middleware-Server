@@ -4,8 +4,8 @@ import {
 } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
-import type { MCPToolInvocation, MCPServerToolsMap, MCPToolOutput } from "@ravenlens/backend/mcp-interface";
 import { MCPConfigInterface } from "../interface/config.js";
+import type { MCPToolInvocation, MCPServerToolsMap, MCPToolOutput } from "./types.js";
 import {
     isRemoteServerConfig,
     isStdioServerConfig,

@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.git
+.github
+dist
+node_modules
+test
+coverage
+npm-debug.log*
+Dockerfile*
+TODO.md
+config/mcpConfig.json

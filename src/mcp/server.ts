@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { extractServerNames, extractToolInvocations, readMCPConfigOrStatus, withMCPClientForServer } from "./mcp.calling.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import type { MCPServerToolsMap, MCPToolOutput } from "@ravenlens/backend/mcp-interface";
+import type { MCPServerToolsMap, MCPToolOutput } from "./types.js";
 
 export const MCPCallingRouter = Router();
 export default MCPCallingRouter;

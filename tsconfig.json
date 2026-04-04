@@ -2,16 +2,12 @@
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout
-    // "rootDir": "./src",
-    // "outDir": "./dist",
+    "rootDir": "./src",
+    "outDir": "./dist",
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
     "module": "nodenext",
-    "baseUrl": ".",
-    "paths": {
-      "@ravenlens/backend/mcp-interface": ["../../packages/backend/src/mcp/index.ts"]
-    },
     "target": "esnext",
     "types": ["./types/index.d.ts"],
     // For nodejs:
@@ -44,5 +40,7 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-  }
+  },
+  "include": ["src/**/*.ts", "types/**/*.d.ts"],
+  "exclude": ["dist", "node_modules", "test", "vitest.config.ts"]
 }

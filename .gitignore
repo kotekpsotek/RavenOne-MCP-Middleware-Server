@@ -1,4 +1,5 @@
 .env
-package-lock.json
 node_modules
-/config
+dist
+config/mcpConfig.json
+!config/mcpConfig.example.json
